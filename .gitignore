@@ -1,0 +1,17 @@
+# Python / environment
+.venv/
+__pycache__/
+*.pyc
+*.nbi
+*.nbc
+.DS_Store
+
+# Report: kept out of the repository
+report/build_report.py
+report/*.pdf
+
+# Large data: rebuilt by `python src/data_prep.py` and `python src/embed.py` (see README)
+data/raw/
+data/embeddings/
+data/corpus.jsonl
+data/queries.jsonl

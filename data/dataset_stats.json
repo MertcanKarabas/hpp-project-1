@@ -1,0 +1,101 @@
+{
+  "source": "arXiv API (export.arxiv.org/api/query)",
+  "categories_queried": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+  ],
+  "date_range": "2025-01 .. 2026-10",
+  "raw_records_downloaded": 49500,
+  "dropped": {
+    "short_abstract": 63,
+    "duplicate_text": 1,
+    "duplicate_id": 10018
+  },
+  "clean_pool": 39418,
+  "n_corpus": 20000,
+  "n_queries": 200,
+  "abstract_words": {
+    "mean": 179.4,
+    "median": 178.0,
+    "min": 50,
+    "max": 401
+  },
+  "doc_text_words_title_plus_abstract": {
+    "mean": 189.6
+  },
+  "approx_bert_tokens_mean": 247,
+  "query_words": {
+    "mean": 9.9,
+    "min": 3,
+    "max": 20
+  },
+  "primary_category_top10": [
+    [
+      "cs.CL",
+      5769
+    ],
+    [
+      "cs.LG",
+      5166
+    ],
+    [
+      "cs.AI",
+      2409
+    ],
+    [
+      "cs.CV",
+      1813
+    ],
+    [
+      "cs.CR",
+      516
+    ],
+    [
+      "cs.RO",
+      430
+    ],
+    [
+      "stat.ML",
+      409
+    ],
+    [
+      "cs.SE",
+      320
+    ],
+    [
+      "cs.IR",
+      314
+    ],
+    [
+      "cs.SD",
+      255
+    ]
+  ],
+  "docs_per_month": {
+    "2025-01": 933,
+    "2025-02": 852,
+    "2025-03": 869,
+    "2025-04": 866,
+    "2025-05": 904,
+    "2025-06": 844,
+    "2025-07": 952,
+    "2025-08": 916,
+    "2025-09": 862,
+    "2025-10": 914,
+    "2025-11": 945,
+    "2025-12": 923,
+    "2026-01": 902,
+    "2026-02": 909,
+    "2026-03": 920,
+    "2026-04": 909,
+    "2026-05": 900,
+    "2026-06": 932,
+    "2026-07": 935,
+    "2026-08": 970,
+    "2026-09": 907,
+    "2026-10": 936
+  },
+  "available_per_window_median": 1153.5,
+  "seed": 42
+}

@@ -1,0 +1,8 @@
+{
+  "n_docs": 20000,
+  "dim": 768,
+  "numpy_float32_mb": 61.4,
+  "python_list_mb": 492.8,
+  "ratio": 8.0,
+  "tolist_seconds": 0.292
+}

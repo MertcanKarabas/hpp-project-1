@@ -1,0 +1,49 @@
+{
+  "mean_analysis": {
+    "mean_norm": 0.5126866615122031,
+    "cos_first_singular_vector_vs_mean": 0.9978275304879954,
+    "energy_share_first_component": 0.2789351237993563,
+    "energy_share_second_component": 0.050221480949473415
+  },
+  "peak_memory_mb_k100": {
+    "numpy_full": 519.937672,
+    "sklearn_tsvd": 78.619882,
+    "sklearn_pca": 26.038974,
+    "ours_block": 80.185056,
+    "ours_power": 8.480664
+  },
+  "power_iteration_k200": {
+    "single_run_s": 74.42886329098837,
+    "rel_error": 0.2863756660213117,
+    "optimal": 0.2863694698869756,
+    "iters_mean": 178.36,
+    "iters_max": 300,
+    "hit_max_iter": 33,
+    "max_rel_sigma_error": 0.009503904730081558,
+    "iters_first_10": [
+      5,
+      14,
+      40,
+      26,
+      27,
+      92,
+      71,
+      38,
+      40,
+      27
+    ],
+    "iters_last_10": [
+      196,
+      278,
+      300,
+      172,
+      245,
+      300,
+      300,
+      117,
+      169,
+      300
+    ]
+  },
+  "total_minutes": 12.171192281249871
+}

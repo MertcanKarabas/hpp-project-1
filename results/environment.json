@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-10-31T14:26:58",
+  "os": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "cpu": "Apple M4",
+  "logical_cores": 10,
+  "python": "3.13.7",
+  "numpy": "2.5.4",
+  "performance_cores": "4",
+  "efficiency_cores": "6",
+  "ram_gb": 16.0,
+  "blas": "accelerate"
+}

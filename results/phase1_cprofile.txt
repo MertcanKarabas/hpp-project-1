@@ -1,0 +1,32 @@
+cProfile: search_naive, 2 queries x 20000 docs x 768 dims
+
+         240006 function calls in 1.608 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    40000    1.582    0.000    1.587    0.000 phase1_naive_search.py:28(cosine_similarity_python)
+        1    0.011    0.011    1.608    1.608 phase1_naive_search.py:42(search_naive)
+        2    0.006    0.003    0.008    0.004 {method 'sort' of 'list' objects}
+    80000    0.003    0.000    0.003    0.000 {built-in method math.sqrt}
+    40002    0.002    0.000    0.002    0.000 {method 'append' of 'list' objects}
+    40000    0.002    0.000    0.002    0.000 {built-in method builtins.len}
+    40000    0.002    0.000    0.002    0.000 phase1_naive_search.py:50(<lambda>)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+
+         240006 function calls in 1.608 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.011    0.011    1.608    1.608 phase1_naive_search.py:42(search_naive)
+    40000    1.582    0.000    1.587    0.000 phase1_naive_search.py:28(cosine_similarity_python)
+        2    0.006    0.003    0.008    0.004 {method 'sort' of 'list' objects}
+    80000    0.003    0.000    0.003    0.000 {built-in method math.sqrt}
+    40002    0.002    0.000    0.002    0.000 {method 'append' of 'list' objects}
+    40000    0.002    0.000    0.002    0.000 {built-in method builtins.len}
+    40000    0.002    0.000    0.002    0.000 phase1_naive_search.py:50(<lambda>)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+

@@ -1,0 +1,222 @@
+{
+  "manual_breakdown": {
+    "n_docs": 20000,
+    "n_queries": 5,
+    "dim": 768,
+    "total_ms_per_query": 770.816774800187,
+    "parts_ms_per_query": {
+      "Per-doc call + append": 1.0932666074950248,
+      "Inner loop + dot product": 321.985308395233,
+      "Norms (a[i]*a[i], b[i]*b[i])": 445.2250497939531,
+      "Full sort + top-k": 2.5131500035058707
+    },
+    "share": {
+      "Per-doc call + append": 0.0014183222825922854,
+      "Inner loop + dot product": 0.4177196435283843,
+      "Norms (a[i]*a[i], b[i]*b[i])": 0.5776016614445961,
+      "Full sort + top-k": 0.0032603727444272808
+    },
+    "max_speedup_if_removed": {
+      "Per-doc call + append": 1.001420336777893,
+      "Inner loop + dot product": 1.7173857728253052,
+      "Norms (a[i]*a[i], b[i]*b[i])": 2.3674335543553164,
+      "Full sort + top-k": 1.0032710375460885
+    }
+  },
+  "cprofile_top": [
+    {
+      "function": "cosine_similarity_python",
+      "file": "phase1_naive_search.py",
+      "ncalls": 40000,
+      "tottime_s": 1.581738356,
+      "cumtime_s": 1.586872854
+    },
+    {
+      "function": "search_naive",
+      "file": "phase1_naive_search.py",
+      "ncalls": 1,
+      "tottime_s": 0.011077989,
+      "cumtime_s": 1.6077354160000001
+    },
+    {
+      "function": "<method 'sort' of 'list' objects>",
+      "file": "~",
+      "ncalls": 2,
+      "tottime_s": 0.006013471,
+      "cumtime_s": 0.007627416000000001
+    },
+    {
+      "function": "<built-in method math.sqrt>",
+      "file": "~",
+      "ncalls": 80000,
+      "tottime_s": 0.003498459,
+      "cumtime_s": 0.003498459
+    },
+    {
+      "function": "<method 'append' of 'list' objects>",
+      "file": "~",
+      "ncalls": 40002,
+      "tottime_s": 0.0021571570000000003,
+      "cumtime_s": 0.0021571570000000003
+    },
+    {
+      "function": "<built-in method builtins.len>",
+      "file": "~",
+      "ncalls": 40000,
+      "tottime_s": 0.0016360390000000002,
+      "cumtime_s": 0.0016360390000000002
+    },
+    {
+      "function": "<lambda>",
+      "file": "phase1_naive_search.py",
+      "ncalls": 40000,
+      "tottime_s": 0.001613945,
+      "cumtime_s": 0.001613945
+    },
+    {
+      "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+      "file": "~",
+      "ncalls": 1,
+      "tottime_s": 1.6917e-05,
+      "cumtime_s": 1.6917e-05
+    }
+  ],
+  "line_profiler": {
+    "cosine_similarity_python": [
+      {
+        "line": 30,
+        "code": "dot = 0.0",
+        "hits": 5000,
+        "seconds": 0.0007520000000000001,
+        "share": 0.00042155207401378117
+      },
+      {
+        "line": 31,
+        "code": "norm_a = 0.0",
+        "hits": 5000,
+        "seconds": 0.000629,
+        "share": 0.00035260140233333556
+      },
+      {
+        "line": 32,
+        "code": "norm_b = 0.0",
+        "hits": 5000,
+        "seconds": 0.000521,
+        "share": 0.0002920593491505053
+      },
+      {
+        "line": 33,
+        "code": "for i in range(len(a)):",
+        "hits": 3845000,
+        "seconds": 0.427759,
+        "share": 0.23979081599476199
+      },
+      {
+        "line": 34,
+        "code": "dot += a[i] * b[i]",
+        "hits": 3840000,
+        "seconds": 0.45193200000000006,
+        "share": 0.25334158499095233
+      },
+      {
+        "line": 35,
+        "code": "norm_a += a[i] * a[i]",
+        "hits": 3840000,
+        "seconds": 0.438475,
+        "share": 0.24579793304945838
+      },
+      {
+        "line": 36,
+        "code": "norm_b += b[i] * b[i]",
+        "hits": 3840000,
+        "seconds": 0.46183500000000005,
+        "share": 0.25889295492307796
+      },
+      {
+        "line": 37,
+        "code": "if norm_a == 0.0 or norm_b == 0.0:",
+        "hits": 5000,
+        "seconds": 0.000639,
+        "share": 0.00035820714799841244
+      },
+      {
+        "line": 39,
+        "code": "return dot / (math.sqrt(norm_a) * math.sqrt(norm_b))",
+        "hits": 5000,
+        "seconds": 0.001342,
+        "share": 0.0007522910682533169
+      }
+    ],
+    "search_naive": [
+      {
+        "line": 44,
+        "code": "results = []",
+        "hits": 1,
+        "seconds": 4.000000000000001e-06,
+        "share": 1.8275722165161356e-06
+      },
+      {
+        "line": 45,
+        "code": "for query in queries:",
+        "hits": 6,
+        "seconds": 4.000000000000001e-06,
+        "share": 1.8275722165161356e-06
+      },
+      {
+        "line": 46,
+        "code": "scores = []",
+        "hits": 5,
+        "seconds": 7.900000000000001e-05,
+        "share": 3.609455127619368e-05
+      },
+      {
+        "line": 47,
+        "code": "for d_idx, doc in enumerate(corpus):",
+        "hits": 5005,
+        "seconds": 0.0007310000000000001,
+        "share": 0.0003339888225683238
+      },
+      {
+        "line": 48,
+        "code": "sim = cosine_similarity_python(query, doc)",
+        "hits": 5000,
+        "seconds": 2.185556,
+        "share": 0.9985653558100348
+      },
+      {
+        "line": 49,
+        "code": "scores.append((d_idx, sim))",
+        "hits": 5000,
+        "seconds": 0.000973,
+        "share": 0.00044455694166755
+      },
+      {
+        "line": 50,
+        "code": "scores.sort(key=lambda x: x[1], reverse=True)",
+        "hits": 5,
+        "seconds": 0.0013410000000000002,
+        "share": 0.0006126935855870345
+      },
+      {
+        "line": 51,
+        "code": "results.append(scores[:k])",
+        "hits": 5,
+        "seconds": 8.000000000000001e-06,
+        "share": 3.655144433032271e-06
+      },
+      {
+        "line": 52,
+        "code": "return results",
+        "hits": 1,
+        "seconds": 0.0,
+        "share": 0.0
+      }
+    ]
+  },
+  "layout_test": {
+    "n_docs": 1000,
+    "python_list_s": 0.04009395799948834,
+    "numpy_rows_s": 0.22117183299269527,
+    "numpy_slower_by": 5.516338222220859
+  }
+}
