@@ -229,6 +229,17 @@ def build():
                                              "n_corpus", "n_queries", "abstract_words"]}, indent=2))
 
 
+def measured_tokens():
+    """Real mpnet token count, written by src/embed.py (runs after this script)."""
+    meta = DATA / "embeddings" / "meta.json"
+    if meta.exists():
+        m = json.loads(meta.read_text()).get("mpnet", {})
+        if "doc_tokens_mean" in m:
+            return (f"; measured with the mpnet tokenizer: {m['doc_tokens_mean']:.0f} "
+                    f"({m['docs_truncated']} docs truncated at {m['max_seq_length']}; data/embeddings/meta.json)")
+    return ""
+
+
 def write_card(s, samples, qsamples):
     lines = [
         "# Dataset: arXiv cs.AI / cs.CL / cs.LG abstracts (2025-2026)",
@@ -240,7 +251,8 @@ def write_card(s, samples, qsamples):
         f"- **Queries:** {s['n_queries']} held-out paper titles (not in the corpus)",
         f"- **Abstract length (words):** mean {s['abstract_words']['mean']}, "
         f"median {s['abstract_words']['median']}, min {s['abstract_words']['min']}, max {s['abstract_words']['max']}",
-        f"- **Approx. tokens per doc (BERT WordPiece ~1.3 x words):** ~{s['approx_bert_tokens_mean']}",
+        f"- **Tokens per doc:** rough estimate before embedding (1.3 x words) ~{s['approx_bert_tokens_mean']}"
+        + measured_tokens(),
         "",
         "## Preprocessing",
         "1. Collapse whitespace/newlines in title and abstract.",

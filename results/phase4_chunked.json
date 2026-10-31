@@ -2,12 +2,13 @@
   "n_docs": 200000,
   "chunk_docs": 20000,
   "unchunked": {
-    "batch200_ms": 50.477458018576726,
+    "batch200_ms": 49.900790996616706,
     "peak_search_memory_mb": 160.639086
   },
   "chunked": {
-    "batch200_ms": 50.018457986880094,
+    "batch200_ms": 52.097166975727305,
     "peak_search_memory_mb": 16.874952
   },
-  "max_abs_diff_chunked_vs_unchunked": 0.0
+  "max_abs_diff_chunked_vs_unchunked": 0.0,
+  "identical_indices_chunked_vs_unchunked": true
 }

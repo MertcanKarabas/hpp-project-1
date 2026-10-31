@@ -196,7 +196,7 @@ Kütüphane versiyonları (referans), 20.000 doküman:
 
 Yani süre neredeyse tamamen "kaç eleman işlendi" sorusuna bağlı. Sparse'ın dolaylı erişimi (`q[indices[r]]`) eleman başına biraz daha pahalı, ama 8 kat daha az eleman işlediği için yine de kazanıyor.
 
-**2. Algoritma, formattan daha önemli.** Merge ve inverted index aynı CSR verisini kullanıyor; inverted 418 kat hızlı. Merge her dokümanı kontrol ediyor, inverted ise ortak kelimesi olmayan dokümanları hiç görmüyor. Ölçülen fark (418 kat), adım sayısı farkından (~170 kat) bile büyük; çünkü merge'ün `if/elif/else` dallanmaları işlemcinin tahmin mekanizmasını sık sık yanıltıyor.
+**2. Algoritma, formattan daha önemli.** Merge ve inverted index aynı CSR verisini kullanıyor; inverted 418 kat hızlı. Merge her dokümanı kontrol ediyor, inverted ise ortak kelimesi olmayan dokümanları hiç görmüyor. Ölçülen fark (418 kat), adım sayısı farkından (~170 kat) bile büyük. Olası sebep (ölçmedik): merge'ün `if/elif/else` dallanmaları veriye bağlı olduğu için işlemcinin dal tahmin mekanizması (branch prediction) sık sık yanılıyor; inverted index'in iç döngüsünde ise dal yok.
 
 **3. Bizim inverted index scipy'yi 10 kat geçiyor.** scipy `Q @ X.T` işlemini genel bir sparse matris çarpımı olarak yapıyor: sonucu önce sparse bir matris olarak kuruyor (indeks dizileri, iki geçiş), sonra biz onu `.toarray()` ile dense'e çeviriyoruz. Bizim kernel sonucu doğrudan dense diziye yazıyor. Kendi problemimize özel kod, genel amaçlı kütüphaneyi yenebiliyor.
 

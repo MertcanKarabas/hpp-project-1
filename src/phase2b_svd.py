@@ -6,7 +6,8 @@ Matrix: mpnet corpus embeddings A (20,000 x 768, float32).
 Methods
   ours_power    our power iteration, one singular vector at a time (src/svd_power.py)
   ours_block    our block power iteration, all k vectors at once (src/svd_power.py)
-  numpy_full    np.linalg.svd: every one of the 768 components (ground truth)
+  full_svd      scipy.linalg.svd in float32: every one of the 768 components (ground truth).
+                (np.linalg.svd would silently compute in float64: ~2x slower, timed once for the record)
   sklearn_tsvd  sklearn TruncatedSVD: randomized, only the top k
   sklearn_pca   sklearn PCA, solver 'covariance_eigh': centre the data, then
                 eigen-decompose the 768 x 768 covariance matrix
@@ -37,6 +38,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.linalg as sl
 from sklearn.decomposition import PCA, TruncatedSVD
 
 import kernels as K
@@ -60,14 +62,15 @@ OUT_RECALL = RESULTS / "phase2b_recall.csv"
 OUT_SUMMARY = RESULTS / "phase2b_summary.json"
 
 NAMES = {
-    "numpy_full": "NumPy full SVD",
+    "full_svd": "Full SVD (SciPy, float32)",
     "sklearn_tsvd": "sklearn TruncatedSVD",
     "sklearn_pca": "sklearn PCA (covariance_eigh)",
     "ours_block": "Ours: block power iteration",
     "ours_power": "Ours: power iteration (1 vector at a time)",
+    "sklearn_pca_mean": "PCA, mean added back (cosine to m + zV)",
 }
-COLORS = {"numpy_full": "#2a78d6", "sklearn_tsvd": "#eb6834", "sklearn_pca": "#1baf7a",
-          "ours_block": "#eda100", "ours_power": "#e87ba4"}
+COLORS = {"full_svd": "#2a78d6", "sklearn_tsvd": "#eb6834", "sklearn_pca": "#1baf7a",
+          "ours_block": "#eda100", "ours_power": "#e87ba4", "sklearn_pca_mean": "#6250d6"}
 INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 
 
@@ -83,8 +86,8 @@ def ours_block(A, k, n_iter=BLOCK_ITERS):
     return U, S, Vt, None
 
 
-def numpy_full(A, k):
-    U, S, Vt = np.linalg.svd(A, full_matrices=False)
+def full_svd(A, k):
+    U, S, Vt = sl.svd(A, full_matrices=False, check_finite=False)   # stays float32
     return U[:, :k], S[:k], Vt[:k], None
 
 
@@ -102,7 +105,7 @@ def sklearn_pca(A, k):
     return Z / S, S, p.components_, p.mean_
 
 
-METHODS = {"numpy_full": numpy_full, "sklearn_tsvd": sklearn_tsvd, "sklearn_pca": sklearn_pca,
+METHODS = {"full_svd": full_svd, "sklearn_tsvd": sklearn_tsvd, "sklearn_pca": sklearn_pca,
            "ours_block": ours_block, "ours_power": ours_power}
 
 
@@ -117,13 +120,13 @@ def time_vs_k(A, sigma_full):
     fresh(OUT_K)
     fresh(OUT_ERR)
     total = float(np.sum(sigma_full.astype(np.float64) ** 2))
-    full_r = benchmark(numpy_full, A, 768, warmup=1, runs=5)   # cost does not depend on k
+    full_r = benchmark(full_svd, A, 768, warmup=1, runs=5)     # cost does not depend on k
     for k in K_GRID:
         for key, func in METHODS.items():
             if key == "ours_power" and k not in K_GRID_POWER:
                 continue
-            r = full_r if key == "numpy_full" else benchmark(func, A, k, warmup=1, runs=5)
-            U, S, Vt, mean = r["result"] if key != "numpy_full" else numpy_full(A, k)
+            r = full_r if key == "full_svd" else benchmark(func, A, k, warmup=1, runs=5)
+            U, S, Vt, mean = r["result"] if key != "full_svd" else full_svd(A, k)
             err = reconstruction_error(A, U, S, Vt, mean)
             optimal = float(np.sqrt(np.sum(sigma_full[k:].astype(np.float64) ** 2) / total))
             save_row(OUT_K, {"method": key, "k": k, "n_docs": A.shape[0], "median_s": r["median_s"],
@@ -188,13 +191,26 @@ def recall_at_10(A, Qm, ref_idx):
     fresh(OUT_RECALL)
     full_time = benchmark(lambda Q, X: Q @ X.T, Qm, A, warmup=2, runs=5)["median_s"]
     for k in K_RECALL:
-        for key in ("sklearn_tsvd", "sklearn_pca"):
-            _, _, Vt, mean = METHODS[key](A, k)
-            m = mean if mean is not None else 0.0
-            Z = np.ascontiguousarray(normalise((A - m) @ Vt.T), dtype=np.float32)
-            Qz = np.ascontiguousarray(normalise((Qm - m) @ Vt.T), dtype=np.float32)
-            t = benchmark(lambda Q, X: Q @ X.T, Qz, Z, warmup=2, runs=5)["median_s"]
-            idx, _ = K.topk_rows_parallel(Qz @ Z.T, 10)
+        for key in ("sklearn_tsvd", "sklearn_pca", "sklearn_pca_mean"):
+            _, _, Vt, mean = METHODS["sklearn_pca" if key.startswith("sklearn_pca") else key](A, k)
+            if key == "sklearn_pca_mean":
+                # PCA used with its mean added back: score = cos(q, m + z V), computed in k dims as
+                # (q.m + (qV^T).z) / ||m + zV||, with ||m + zV||^2 = ||m||^2 + 2 (mV^T).z + ||z||^2
+                Zc = (A - mean) @ Vt.T
+                mV = mean @ Vt.T
+                norms = np.sqrt(mean @ mean + 2 * Zc @ mV + np.einsum("ij,ij->i", Zc, Zc))
+                Z = np.ascontiguousarray(Zc / norms[:, None], dtype=np.float32)
+                Qn = normalise(Qm)
+                Qz = np.ascontiguousarray(Qn @ Vt.T, dtype=np.float32)
+                bias = ((Qn @ mean)[:, None] / norms[None, :]).astype(np.float32)
+                score = lambda Q, X: Q @ X.T + bias
+            else:
+                m = mean if mean is not None else 0.0
+                Z = np.ascontiguousarray(normalise((A - m) @ Vt.T), dtype=np.float32)
+                Qz = np.ascontiguousarray(normalise((Qm - m) @ Vt.T), dtype=np.float32)
+                score = lambda Q, X: Q @ X.T
+            t = benchmark(score, Qz, Z, warmup=2, runs=5)["median_s"]
+            idx, _ = K.topk_rows_parallel(np.ascontiguousarray(score(Qz, Z)), 10)
             rec = float(np.mean([len(set(a) & set(b)) / 10 for a, b in zip(idx, ref_idx)]))
             save_row(OUT_RECALL, {"method": key, "k": k, "recall_at_10": rec, "matmul_s": t,
                                   "full_dim_matmul_s": full_time, "reduced_corpus_mb": Z.nbytes / 1e6})
@@ -234,9 +250,9 @@ def style(ax):
     ax.set_axisbelow(True)
 
 
-def line(ax, xs, ys, key, **kw):
+def line(ax, xs, ys, key, label=None, **kw):
     ax.plot(xs, ys, "-o", color=COLORS[key], linewidth=2, markersize=7, markeredgecolor=SURFACE,
-            markeredgewidth=1.5, label=NAMES[key], **kw)
+            markeredgewidth=1.5, label=label or NAMES[key], **kw)
 
 
 def plot():
@@ -280,9 +296,13 @@ def plot():
     c.set_title("(c) Reconstruction error vs the best possible", color=INK, fontsize=11, loc="left")
     style(c)
 
-    for key in ("sklearn_tsvd", "sklearn_pca"):
+    recall_labels = {"sklearn_tsvd": "TruncatedSVD (uncentred)",
+                     "sklearn_pca": "PCA, cosine in the centred space",
+                     "sklearn_pca_mean": "PCA, mean added back"}
+    for key, label in recall_labels.items():
         rows = [r for r in rc if r["method"] == key]
-        line(d, [int(r["k"]) for r in rows], [float(r["recall_at_10"]) for r in rows], key)
+        line(d, [int(r["k"]) for r in rows], [float(r["recall_at_10"]) for r in rows], key, label=label)
+    d.legend(frameon=False, fontsize=9, labelcolor=INK2, loc="lower right")
     d.axhline(1.0, color=INK2, linewidth=1, linestyle="--")
     d.text(K_RECALL[0], 1.0, " full 768-dim search = 1.0", color=INK2, fontsize=9, va="bottom")
     d.set_ylim(0, 1.08)
@@ -306,11 +326,18 @@ def main():
     A, Qm = load_dense("mpnet")
     ref_idx = np.load(RESULTS / "phase1_reference_top10_mpnet.npz")["indices"]
     t0 = time.perf_counter()
-    _, sigma_full, Vt_full = np.linalg.svd(A, full_matrices=False)
+    _, sigma_full, Vt_full = np.linalg.svd(A.astype(np.float64), full_matrices=False)   # float64 reference
 
     print("7. PCA vs SVD (data mean):")
     summary = {"mean_analysis": mean_analysis(A, Vt_full, sigma_full)}
     print("  ", summary["mean_analysis"])
+    # the precision trap: np.linalg.svd upcasts float32 input to float64 internally
+    summary["full_svd_seconds"] = {
+        "scipy_float32": benchmark(full_svd, A, 768, warmup=1, runs=5)["median_s"],
+        "numpy_linalg_float64_internally": benchmark(np.linalg.svd, A, False, warmup=1, runs=5)["median_s"],
+    }
+    print("   full SVD: SciPy float32 %.3f s | np.linalg (float64 inside) %.3f s"
+          % tuple(summary["full_svd_seconds"].values()))
     print("5. block power: error vs iterations (k=100):")
     block_iterations(A, sigma_full)
     print("1+3. time vs k and reconstruction error:")

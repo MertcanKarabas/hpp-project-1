@@ -16,7 +16,7 @@ Ham sonuçlar `results/`, figürler `figures/` klasöründe.
 | Baseline süresi (20.000 doküman, 768 boyut) | **791 ms / query** (20 query, 2 warmup + 5 run, median) |
 | 200 query'nin tamamı | ~158 sn (tahmini); tek seferlik referans çalıştırması **185 sn** sürdü (warmup'sız, tek ölçüm; benchmark değil) |
 | Süre nasıl büyüyor? | Doküman sayısıyla **doğrusal**: her boyutta doküman başına ~39 µs |
-| Zaman nereye gidiyor? | %99,6'sı element-element cosine döngüsünde, **%58'i norm hesabında** |
+| Zaman nereye gidiyor? | %99,5'i element-element cosine döngüsünde, **%58'i norm hesabında** |
 | Sort bottleneck mi? | **Hayır**: sadece %0,3 (query başına 2,5 ms) |
 | Veri düzeninin bedeli | Python listeleri NumPy dizisinden **8 kat** fazla bellek tutuyor (493 MB'a karşı 61 MB) |
 
@@ -175,7 +175,7 @@ Okuma:
 
 - **Doğrusal büyüme.** Doküman başına süre her boyutta ~39 µs. Doküman sayısı 20 katına çıkınca süre de ~20 katına çıkıyor. Beklenen: her doküman için aynı miktarda iş (768 × 3 çarpma-toplama) yapılıyor. Sort O(N log N) olsa da payı o kadar küçük ki eğriyi bozmuyor.
 - **Eleman başına maliyet:** 39,6 µs / 768 ≈ **52 ns**. Bu sürede modern bir işlemci yüzlerce aritmetik işlem yapabilir; biz 6 yapıyoruz. Aradaki fark Python yorumlayıcısının maliyeti.
-- **10K'daki yüksek std (0,51 s):** M4'te performans ve verimlilik çekirdekleri var; işletim sistemi işlemi arada çekirdek değiştirebiliyor. Median kullanmamızın sebebi bu tür dalgalanmalar.
+- **10K'daki yüksek std (0,51 s):** Kesin sebebini ölçmedik; olası bir açıklama, M4'te işletim sisteminin işlemi performans ve verimlilik çekirdekleri arasında taşıyabilmesi. Median kullanmamızın sebebi bu tür dalgalanmalar.
 - **Etkileşimli değil:** 791 ms, bir kullanıcının "anında" diye algılayacağı ~100 ms sınırının çok üstünde. 200 query'nin tamamı ~2,6 dakika sürüyor.
 
 Ham veri: `results/phase1_baseline.csv` (her satırda 5 ham ölçüm de var).
@@ -326,7 +326,7 @@ Neden? NumPy dizisinde `a[i]` her seferinde yeni bir "NumPy skaler" nesnesi olu�
 
 ![Figure 1](../figures/fig1_profile.png)
 
-> **Figure 1:** Naive arama query başına 771 ms'nin %99,6'sını element-element cosine döngüsünde harcıyor. Bunun %58'i zaten birim uzunlukta olan vektörlerin norm'larını yeniden hesaplamak. Sort ise sadece %0,3; onu hızlandırmak Amdahl Yasası gereği aramayı en fazla 1,003 kat hızlandırır.
+> **Figure 1:** Naive arama query başına 771 ms'nin %99,5'ini element-element cosine döngüsünde harcıyor. Bunun %58'i zaten birim uzunlukta olan vektörlerin norm'larını yeniden hesaplamak. Sort ise sadece %0,3; onu hızlandırmak Amdahl Yasası gereği aramayı en fazla 1,003 kat hızlandırır.
 
 1. **Gereksiz norm hesabı (%58).** `norm_a` ve `norm_b` satırları zamanın yarısından fazlasını alıyor. Üç ayrı açıdan israf:
    - Vektörler zaten birim uzunlukta; her norm 1 çıkıyor.

@@ -33,14 +33,21 @@ Usage:
   .venv/bin/python src/phase3_parallel.py --plot-only
 """
 
-import argparse
-import asyncio
-import csv
-import json
 import os
-import subprocess
 import sys
-import time
+
+# The BLAS thread limit is read when NumPy loads, so it has to be set before the import below.
+# --all passes it explicitly to every subprocess; this default covers a manual --one run.
+# phase2_best deliberately keeps Accelerate's default threading.
+if "--one" in sys.argv and "phase2_best" not in sys.argv:
+    os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+
+import argparse  # noqa: E402
+import asyncio  # noqa: E402
+import csv  # noqa: E402
+import json  # noqa: E402
+import subprocess  # noqa: E402
+import time  # noqa: E402
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
@@ -77,8 +84,8 @@ def load_globals(workload):
 
 
 def init_worker(workload):
-    """ProcessPool initializer: runs once in every worker process, not once per task."""
-    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    """ProcessPool initializer: runs once in every worker process, not once per task.
+    Workers inherit VECLIB_MAXIMUM_THREADS=1 from the parent environment (set before NumPy loads)."""
     load_globals(workload)
 
 

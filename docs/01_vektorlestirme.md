@@ -173,7 +173,7 @@ data     1.919.982 × 4 byte = 7,68 MB
 indices  1.919.982 × 4 byte = 7,68 MB
 indptr      20.001 × 4 byte = 0,08 MB
                       toplam = 15,4 MB
-dense:  20.000 × 25.933 × 4 = 2.070 MB  → ~134 kat fark
+dense:  20.000 × 25.933 × 4 = 2.075 MB  → ~134 kat fark
 ```
 
 `.tocsr()` ile CSR'yi seçtik, çünkü aramada her doküman bir **satır** ve satırları tek tek geziyoruz. Phase 2A'da kendi sparse dot product'ımızı yazarken tam olarak bu üç diziyi kullanacağız: `data[j] * query[indices[j]]` toplamı.

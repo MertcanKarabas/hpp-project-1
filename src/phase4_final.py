@@ -135,6 +135,7 @@ def chunked(X, Q, n=200_000, chunk=20_000):
         print(f"  {name:9s} N={n}: {r['median_s'] * 1000:.2f} ms, peak search memory {peak / 1e6:.1f} MB")
     a, b = SearchEngine(Xn).search(Q, TOP), SearchEngine(Xn, chunk_docs=chunk).search(Q, TOP)
     out["max_abs_diff_chunked_vs_unchunked"] = float(np.max(np.abs(a[1] - b[1])))
+    out["identical_indices_chunked_vs_unchunked"] = bool(np.array_equal(a[0], b[0]))
     OUT_CHUNK.write_text(json.dumps(out, indent=2))
 
 
@@ -169,7 +170,7 @@ def overview(X, Q):
     for name, phase, f in versions:
         r = benchmark(f, warmup=2, runs=5)
         err = float(np.max(np.abs(r["result"][1] - ref)))
-        row(name, phase, r["median_s"], err, "approximate (recall@10 ~0.95)" if "fast" in name else "")
+        row(name, phase, r["median_s"], err, "approximate (recall@10 ~0.95)" if name.startswith("Final, fast") else "")
 
 
 # --- figures -----------------------------------------------------------------------------------------

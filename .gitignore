@@ -12,6 +12,8 @@ report/*.pdf
 
 # Large data: rebuilt by `python src/data_prep.py` and `python src/embed.py` (see README)
 data/raw/
-data/embeddings/
+data/embeddings/*
+!data/embeddings/meta.json
+!data/embeddings/corpus_ids.txt
 data/corpus.jsonl
 data/queries.jsonl

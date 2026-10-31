@@ -18,6 +18,7 @@ Two versions:
 """
 
 import numpy as np
+import scipy.linalg as sl
 
 
 def power_iteration_svd(A, k, max_iter=300, tol=1e-6, seed=0):
@@ -49,16 +50,19 @@ def power_iteration_svd(A, k, max_iter=300, tol=1e-6, seed=0):
     return U, S, V.T, iters
 
 
-def block_power_svd(A, k, n_iter=10, oversample=10, seed=0):
-    """Top-k SVD with block power (subspace) iteration. Returns U, S, Vt."""
+def block_power_svd(A, k, n_iter=6, oversample=10, seed=0):
+    """Top-k SVD with block power (subspace) iteration. Returns U, S, Vt.
+
+    QR and the small SVD use scipy.linalg, which keeps float32 data in float32
+    (numpy.linalg silently computes in float64)."""
     rng = np.random.default_rng(seed)
     n, d = A.shape
     l = min(k + oversample, d)                          # a few extra vectors speed up convergence
-    V, _ = np.linalg.qr(rng.standard_normal((d, l)).astype(A.dtype))
+    V, _ = sl.qr(rng.standard_normal((d, l)).astype(A.dtype), mode="economic", check_finite=False)
     for _ in range(n_iter):
-        V, _ = np.linalg.qr(A.T @ (A @ V))              # multiply the whole block, re-orthonormalise
+        V, _ = sl.qr(A.T @ (A @ V), mode="economic", check_finite=False)   # multiply the block, re-orthonormalise
     B = A @ V                                           # n x l: A restricted to the found subspace
-    Ub, s, Wt = np.linalg.svd(B, full_matrices=False)   # small SVD (l columns) splits the block
+    Ub, s, Wt = sl.svd(B, full_matrices=False, check_finite=False)       # small SVD splits the block
     U = Ub[:, :k]
     S = s[:k]
     Vt = (V @ Wt.T)[:, :k].T

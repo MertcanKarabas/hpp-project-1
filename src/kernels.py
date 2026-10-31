@@ -49,7 +49,7 @@ def dense_numba(Q, X):
     S = np.empty((nq, n), dtype=np.float32)
     for j in range(n):
         for i in range(nq):
-            acc = 0.0                      # float64: exact same arithmetic as Python
+            acc = 0.0                      # float64 sum (each float32*float32 product is rounded to float32 first)
             for t in range(d):
                 acc += Q[i, t] * X[j, t]
             S[i, j] = acc

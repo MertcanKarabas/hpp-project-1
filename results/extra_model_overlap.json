@@ -1,0 +1,6 @@
+{
+  "n_queries": 200,
+  "k": 10,
+  "mpnet_vs_tfidf": 0.161,
+  "mpnet_vs_minilm": 0.3625
+}

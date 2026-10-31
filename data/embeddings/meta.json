@@ -1,0 +1,81 @@
+{
+  "n_corpus": 20000,
+  "n_queries": 200,
+  "row_order": "row i = line i of data/corpus.jsonl / data/queries.jsonl",
+  "tfidf": {
+    "params": {
+      "stop_words": "english",
+      "sublinear_tf": true,
+      "min_df": 2,
+      "max_df": 0.5,
+      "dtype": "float32"
+    },
+    "corpus_shape": [
+      20000,
+      25933
+    ],
+    "query_shape": [
+      200,
+      25933
+    ],
+    "vocab_size": 25933,
+    "nnz": 1919982,
+    "density": 0.003701812362626769,
+    "avg_nnz_per_doc": 95.9991,
+    "avg_nnz_per_query": 7.735,
+    "queries_with_zero_terms": 0,
+    "csr_bytes": 15439860,
+    "dense_equivalent_bytes": 2074640000,
+    "seconds": 0.86
+  },
+  "mpnet": {
+    "model": "sentence-transformers/all-mpnet-base-v2",
+    "dim": 768,
+    "corpus_shape": [
+      20000,
+      768
+    ],
+    "query_shape": [
+      200,
+      768
+    ],
+    "dtype": "float32",
+    "bytes": 61440000,
+    "unit_norm": true,
+    "norm_min_max": [
+      0.9999998211860657,
+      1.0000001192092896
+    ],
+    "max_seq_length": 384,
+    "doc_tokens_mean": 282.4,
+    "doc_tokens_median": 279.0,
+    "docs_truncated": 1449,
+    "device": "mps",
+    "seconds": 1035.2
+  },
+  "minilm": {
+    "model": "sentence-transformers/all-MiniLM-L6-v2",
+    "dim": 384,
+    "corpus_shape": [
+      20000,
+      384
+    ],
+    "query_shape": [
+      200,
+      384
+    ],
+    "dtype": "float32",
+    "bytes": 30720000,
+    "unit_norm": true,
+    "norm_min_max": [
+      0.9999998807907104,
+      1.0000001192092896
+    ],
+    "max_seq_length": 256,
+    "doc_tokens_mean": 282.4,
+    "doc_tokens_median": 279.0,
+    "docs_truncated": 12621,
+    "device": "mps",
+    "seconds": 88.1
+  }
+}

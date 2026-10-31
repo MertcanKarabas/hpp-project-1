@@ -58,6 +58,8 @@ class SearchEngine:
 
     def search(self, Q, k=10):
         """Top-k (document ids, cosine scores) for every query row, best first."""
+        if not 1 <= k <= self.X.shape[0]:
+            raise ValueError(f"k must be between 1 and {self.X.shape[0]}, got {k}")
         Q = self.prepare(Q)
         if self.chunk_docs is None:
             return topk(Q @ self.X.T, k)

@@ -6,7 +6,7 @@
 - **Corpus:** 20,000 documents (document = title + abstract)
 - **Queries:** 200 held-out paper titles (not in the corpus)
 - **Abstract length (words):** mean 179.4, median 178.0, min 50, max 401
-- **Approx. tokens per doc (BERT WordPiece ~1.3 x words):** ~247
+- **Tokens per doc:** rough estimate before embedding (1.3 x words) ~247; measured with the mpnet tokenizer: 282 (1449 docs truncated at 384; data/embeddings/meta.json)
 
 ## Preprocessing
 1. Collapse whitespace/newlines in title and abstract.

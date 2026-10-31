@@ -67,7 +67,7 @@ def dense_numba(Q, X):
 ```
 Python döngüsünün birebir aynısı, tek fark `@njit` dekoratörü. Numba fonksiyon ilk çağrıldığında argüman tiplerine bakıp LLVM ile makine koduna derliyor ("just-in-time"). Böylece yorumlayıcı maliyeti, kutulu float nesneleri ve tip kontrolü ortadan kalkıyor.
 
-- `acc = 0.0` float64. Bu, Python ile aynı aritmetiği garanti ediyor ama Bölüm 3'te göreceğimiz gibi hızı sınırlıyor.
+- `acc = 0.0` float64. Toplam float64'te tutuluyor, ama her `Q[i, t] * X[j, t]` çarpımı önce float32'de hesaplanıp yuvarlanıyor; yani Python'un float64 aritmetiğiyle bit bit aynı değil (fark ~10⁻⁸). Bölüm 3'te göreceğimiz gibi bu toplayıcı hızı da sınırlıyor.
 - Döngü sırası: doküman dışta. Bir doküman satırı (768 sayı = 3 KB) bir kez okunup tüm query'ler için önbellekte kullanılıyor.
 
 ### 1.4 Numba `parallel=True` + `prange`
@@ -201,7 +201,7 @@ Toplama sırası serbest kalınca LLVM toplamı birden çok SIMD şeridine böl�
 
 ### 4.4 parallel (6,1 kat, 10 çekirdekte)
 `@njit`'ten paralel versiyona hızlanma 140 → 23 ms, yani 6,1 kat; 10 kat değil:
-- M4'ün 10 çekirdeğinin 6'sı verimlilik çekirdeği ve performans çekirdeklerinden yavaş. Kabaca 4 + 6 × 0,5 ≈ 7 "performans çekirdeği eşdeğeri" var.
+- M4'ün 10 çekirdeğinin 6'sı verimlilik çekirdeği ve performans çekirdeklerinden yavaş. Verimlilik çekirdeklerinin göreli hızını ölçmedik; bu yüzden tam 10 kat beklemek için bir sebep yok. Phase 3'te farklı bir kernel üzerinde yaptığımız model tahmini, bir verimlilik çekirdeğinin performans çekirdeğinin işinin ~%23'ünü yaptığını gösteriyor.
 - Thread başlatma ve iş dağıtma sabit bir maliyet. En küçük problemde (1 × 1K) bu maliyet işin kendisinden büyük: parallel + fastmath (0,066 ms), tek thread'li fastmath'ten (0,041 ms) **yavaş**.
 - Bu, Phase 3'te ölçeceğimiz Amdahl Yasası ve paralel ek yükünün ilk işareti.
 
@@ -209,7 +209,7 @@ Toplama sırası serbest kalınca LLVM toplamı birden çok SIMD şeridine böl�
 Matris çarpımı, sayısal hesaplamanın en çok optimize edilmiş işlemi. BLAS (burada Apple Accelerate) bizim döngümüzün yapmadığı şeyleri yapıyor:
 - **Cache blocking ve register tiling:** Matrisleri önbelleğe sığan bloklara bölüyor. Önbelleğe veya register'a alınan her sayıyı birçok çarpmada yeniden kullanıyor. Bizim döngümüz her query için doküman satırını L1'den baştan okuyor.
 - **SIMD ve çok çekirdek**, elle ayarlanmış kodla.
-- **AMX:** Apple Silicon'da Accelerate, CPU'ya bağlı ayrı bir matris çarpım biriminden (AMX) yararlanıyor. Genel amaçlı derleyicinin (LLVM) ürettiği kod bu birimi kullanamıyor.
+- **AMX (yorum):** Apple Silicon'da Accelerate'in, CPU'ya bağlı ayrı bir matris çarpım biriminden (AMX/SME) yararlandığı biliniyor; genel amaçlı derleyicinin (LLVM) ürettiği kod bu birimi kullanamıyor. Bunu doğrudan ölçmedik. Ama ölçtüğümüz 1.415 GFLOP/s, 10 CPU çekirdeğinin SIMD birimleriyle kaba bir hesapla ulaşılabilecek tepe değerin (~0,8 TFLOP/s) üstünde; bu da hesabın çekirdeklerin dışında bir birimde yapıldığıyla tutarlı.
 
 Sonuç: 200 × 20K'da NumPy 1.415 GFLOP/s, bizim en iyimiz 166 GFLOP/s.
 
@@ -224,7 +224,7 @@ Sonuç: 200 × 20K'da NumPy 1.415 GFLOP/s, bizim en iyimiz 166 GFLOP/s.
 Bu, roofline modelinin (bonus) tam konusu. Ayrıca sistem tasarımı için önemli bir ders: **query'leri gruplayıp tek seferde işlemek (batching), tek tek işlemekten çok daha verimli.**
 
 ### 4.7 Top-k'da Numba neden kazanıyor?
-- `np.argpartition(-S, ...)`: önce `-S` için 16 MB'lık yeni bir dizi oluşturuyor, sonra her satır için 32 MB'lık bir int64 indeks dizisi üretip veriyi defalarca karıştırıyor (introselect). Bellek üzerinden birden fazla geçiş yapıyor ve tek thread çalışıyor.
+- `np.argpartition(-S, ...)`: önce `-S` için 16 MB'lık yeni bir dizi oluşturuyor, sonra toplam 32 MB'lık bir int64 indeks dizisi (her satır için bir indeks satırı) üretip veriyi defalarca karıştırıyor (introselect). Bellek üzerinden birden fazla geçiş yapıyor ve tek thread çalışıyor.
 - Numba döngüsü: tek geçiş, eleman başına çoğunlukla tek karşılaştırma, ara dizi yok, en iyi 10'luk tampon L1'de. Satırlar bağımsız olduğu için `prange` ile kolayca paralel.
 
 **Phase 1'deki öngörü doğrulandı.** Phase 1'de sort zamanın sadece %0,3'üydü ve "skorlama hızlanınca önemli hale gelecek" demiştik. Şimdi NumPy ile skorlama 4,3 ms, NumPy top-k ise 28,2 ms; yani top-k artık toplam sürenin %87'si. Amdahl Yasası'nın klasik görünümü: bir darboğazı çözünce bir sonraki ortaya çıkıyor. Final sistemde (Phase 4) top-k için Numba kullanacağız.

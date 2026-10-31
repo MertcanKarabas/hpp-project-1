@@ -9,11 +9,11 @@
 | Soru | Cevap |
 |---|---|
 | Final sistem (BLAS) için en iyi strateji | **Hiçbiri.** Phase 2'nin en iyisi (varsayılan BLAS + Numba paralel top-k, **4,5 ms**) tüm açık paralellik stratejilerinden hızlı (en iyileri 5,6–6,2 ms) |
-| Neden? | M4'te matris çarpımı CPU çekirdeklerinde değil, paylaşılan bir matris biriminde (AMX/SME) çalışıyor. Tek thread onu zaten dolduruyor. Amdahl fit: işin sadece ~%16'sı paralelleşebiliyor |
-| CPU-bound iş yükünde | Ray dışındaki tüm stratejiler 4 worker'da ~3,3 kat (Ray 2,8), 10 worker'da 3,5–4,5 kat. En iyisi Numba `prange` (4,5 kat) |
+| Neden? | Sadece matris çarpımını ölçtük: tek BLAS thread'i 1.265 GFLOP/s yapıyor, 2+ thread en fazla %6 ekliyor. Bu, çarpımın çekirdeklerin paylaştığı ayrı bir matris biriminde (AMX/SME) yapıldığı yorumuyla tutarlı. Amdahl fit: işin sadece ~%16'sı paralelleşebiliyor |
+| CPU-bound iş yükünde | Ray dışındaki tüm stratejiler 4 worker'da ~3,3 kat (Ray 2,8), 10 worker'da 3,9–4,5 kat (Ray 3,5). En iyisi Numba `prange` (4,5 kat) |
 | Saf Python'da | ThreadPool **1,0 kat** (GIL). ProcessPool **4,2 kat** |
 | Kod karmaşıklığı başına en iyi hızlanma | Numba `prange`: `range` → `prange` değişikliği ile 4,5 kat |
-| Naive baseline'a göre | 158 s → 4,5 ms: **35.100 kat** |
+| Naive baseline'a göre | 158 s (Phase 1 baseline'ı, 20 query ölçülüp 200'e ölçeklendi) → 4,5 ms: **35.100 kat**. Phase 4'te aynı çalıştırmada ölçülen değerlerle 154,5 s → 4,84 ms: ~32.000 kat; final sürenin farklı çalıştırmalardaki aralığı 4,5–5,0 ms |
 
 ---
 
@@ -200,7 +200,7 @@ async def _executor(T, fn, ex):
 
 ![Figure 5](../figures/fig5_parallel.png)
 
-> **Figure 5:** (a) CPU-bound aramada Ray dışındaki tüm stratejiler 4 performans çekirdeğine kadar neredeyse aynı ölçekleniyor (3,3 kat; Ray görev ek yükü yüzünden 2,8). Verimlilik çekirdekleri eklenince kazanç yavaşlıyor; en iyisi Numba `prange` ile 10 worker'da 4,5 kat (Amdahl fit P = 0,87). (b) Saf Python'da thread'ler GIL yüzünden hiç hızlanmıyor, process'ler 4,2 kat hızlanıyor. (c) Final sistemde (BLAS) hiçbir açık paralellik stratejisi Phase 2'nin 4,5 ms'lik sonucunu geçemiyor: matris çarpımı tek thread'in zaten doldurduğu paylaşılan bir matris biriminde çalışıyor ve worker eklemek sadece ek yük getiriyor.
+> **Figure 5:** (a) CPU-bound aramada Ray dışındaki tüm stratejiler 4 performans çekirdeğine kadar neredeyse aynı ölçekleniyor (3,3 kat; Ray görev ek yükü yüzünden 2,8). Verimlilik çekirdekleri eklenince kazanç yavaşlıyor; en iyisi Numba `prange` ile 10 worker'da 4,5 kat (Amdahl fit P = 0,87). (b) Saf Python'da thread'ler GIL yüzünden hiç hızlanmıyor, process'ler 4,2 kat hızlanıyor. (c) Final sistemde (BLAS) hiçbir açık paralellik stratejisi Phase 2'nin 4,5 ms'lik sonucunu geçemiyor: matris çarpımı tek thread'in zaten en iyi throughput'un ~%95'ine ulaştığı paylaşılan bir matris biriminde çalışıyor ve worker eklemek sadece ek yük getiriyor.
 
 ---
 
@@ -218,24 +218,40 @@ Amdahl: işin P kadarı paralelleşebiliyorsa W worker ile hızlanma en fazla 1 
 
 Ama bu P'yi "kodun %14'ü seri" diye okumak yanlış olur. Amdahl tüm worker'ların eşit hızda olduğunu varsayıyor. M4'te değiller:
 - 4 worker'a kadar (sadece performans çekirdekleri) hızlanma **3,35 kat**, yani %84 verim.
-- 6 verimlilik çekirdeği eklenince sadece ~1,2 kat daha geliyor. %84 verim varsayarsak: 4,52 = 0,84 × (4 + 6r) → r ≈ 0,23. Yani bu SIMD-ağırlıklı kernel'de bir verimlilik çekirdeği, bir performans çekirdeğinin işinin **~%23'ünü** yapabiliyor.
+- 6 verimlilik çekirdeği eklenince hızlanma 3,35'ten 4,52'ye çıkıyor (×1,35). Basit bir model kurarsak (her çekirdek %84 verimle çalışıyor, bir verimlilik çekirdeği bir performans çekirdeğinin r katı iş yapıyor): 4,52 = 0,84 × (4 + 6r) → r ≈ 0,23. Yani bu SIMD-ağırlıklı kernel'de bir verimlilik çekirdeği, bir performans çekirdeğinin işinin **~%23'ünü** yapıyor gibi görünüyor. Bu bir **model tahmini**; çekirdek hızlarını ya da işletim sisteminin thread'leri hangi çekirdeğe koyduğunu doğrudan ölçmedik.
 
 Yani eğrinin düzleşmesinin asıl sebebi seri kod değil, donanımın asimetrisi. Bu, Amdahl'ın varsayımlarının gerçek bir makinede nerede kırıldığına iyi bir örnek.
 
 Ray'in daha düşük kalmasının sebebi (3,5 kat) görev başına ek yük: her görev için zamanlama, nesne deposu erişimi ve süreçler arası mesajlaşma. Parça sayısı arttıkça bu ek yük toplam süreye eklenen seri bir parça gibi davranıyor.
 
 ### 4.3 BLAS ve paylaşılan matris birimi: final sistemde paralellik neden işe yaramıyor?
-Phase 2C'de gördük: Accelerate, M4'te matris çarpımını CPU çekirdeklerinin SIMD birimleriyle değil, CPU'ya bağlı ayrı bir matris biriminde (AMX/SME) yapıyor. Phase 3 bunun sonucunu gösteriyor:
-- BLAS'a 1'den 10'a kadar thread vermek çarpımı sadece **1,17 kat** hızlandırıyor (6,53 → 5,60 ms).
-- Thread havuzunda her thread kendi parçasını 1 BLAS thread'iyle çarpıyor. Sonuç yine en fazla **1,24 kat**. 4 worker'dan sonra süre **artıyor**.
-- Amdahl fit P ≈ 0,16: işin ~%84'ü pratikte seri davranıyor. "Seri" olan kod değil, paylaşılan donanım. 10 thread aynı tek kaynağa sıra bekliyor.
+Phase 3'ün en şaşırtıcı sonucu bu. BLAS iş yükünde hiçbir paralellik stratejisi tek bir büyük matris çarpımını geçemedi:
+- BLAS'a 1'den 10'a kadar thread vermek arama süresini sadece **1,17 kat** kısaltıyor (6,53 → 5,60 ms). Bu sürelerin içinde tek thread'li ~1,3 ms'lik top-k da var.
+- Thread havuzunda her thread kendi parçasını 1 BLAS thread'iyle çarpıyor. Sonuç yine en fazla **1,24 kat**, ve 4 worker'dan sonra süre **artıyor**.
+- Amdahl fit P ≈ 0,16: işin ~%84'ü pratikte seri davranıyor.
 
-Bellek bant genişliği sınır değil: 61 MB'lık corpus ~5 ms'de okunuyor, ~12 GB/s. M4'ün bant genişliği bunun birkaç katı.
+**Sadece matris çarpımını ayrıca ölçtük** (`src/extra_measurements.py blas`, `results/extra_blas_threads.csv`). `Q @ X.T` (200 × 20K × 768), her thread ayarı ayrı bir süreçte:
+
+| `VECLIB_MAXIMUM_THREADS` | Süre | GFLOP/s | 1 thread'e göre |
+|---|---:|---:|---:|
+| 1 | 4,86 ms | 1.265 | 1,00× |
+| 2 | 4,59 ms | 1.338 | 1,06× |
+| 4 | 4,58 ms | 1.340 | 1,06× |
+| 10 | 4,61 ms | 1.333 | 1,05× |
+| varsayılan | 4,62 ms | 1.329 | 1,05× |
+
+Bu tablo iki şey söylüyor:
+1. **Tek thread zaten neredeyse tavanda.** 2 thread %6 ekliyor, daha fazlası hiçbir şey eklemiyor. Thread eklemenin faydası yok, çünkü iş thread sayısıyla ölçeklenen bir kaynakta yapılmıyor.
+2. **Tek thread 1.265 GFLOP/s yapıyor.** Bu, tek bir CPU çekirdeğinin SIMD birimleriyle kaba bir hesapla ulaşabileceği değerin (~0,14 TFLOP/s: 4 adet 128-bit FMA birimi × 4 float32 × 2 FLOP × ~4,4 GHz) yaklaşık 9 katı. Tek çekirdeğin bunu kendi başına yapması mümkün değil.
+
+İkisi birlikte şu yorumla tutarlı: Accelerate, M4'te matris çarpımını CPU çekirdeklerinin içinde değil, çekirdeklerin paylaştığı ayrı bir **matris biriminde** (Apple'ın AMX/SME birimi) yapıyor. Tek thread bu birimi besleyebiliyor; daha fazla thread aynı birime sıra bekliyor. Birimi doğrudan gözlemlemedik (Apple bunun için bir araç sunmuyor); bu, ölçümlerden çıkan ve Apple'ın belgeleriyle uyumlu bir yorum. Amdahl fit'indeki "seri" kısım bu yüzden kod değil, paylaşılan donanım.
+
+Bellek bant genişliği sınır değil: 61 MB'lık corpus ~5 ms'de okunuyor, yani ~12 GB/s. Phase 4'te aynı makinede tek query ile ~70 GB/s okuma hızına ulaştık.
 
 Phase 2'nin en iyi versiyonu neden kazanıyor? Tek bir büyük matris çarpımı, matris birimini en verimli kullanıyor: parçalara bölme, birleştirme ya da görev yönetimi yok. Arkasından gelen top-k ise saf CPU işi ve Numba `prange` ile 10 çekirdeğe dağılıyor (1,26 → 0,29 ms). Kısacası doğru iş doğru donanımda.
 
 ### 4.4 Pickling ve süreçler arası iletişim (IPC)
-Aynı ProcessPool, veriyi her görevde gönderince 3–4 kat yavaşlıyor (6,8 ms yerine 20,8–32,8 ms). Her aramada 61 MB'lık corpus pickle ile seri hale getiriliyor, process'ler arasında kopyalanıyor ve tekrar açılıyor. Worker sayısı arttıkça daha da kötüleşiyor, çünkü ana process tüm veriyi tek başına gönderiyor. Çözüm: veriyi bir kez paylaş (initializer + `mmap`, Ray'de `ray.put`) ve görevlere sadece indeks gönder.
+Aynı ProcessPool, veriyi her görevde gönderince yaklaşık 3 kat yavaşlıyor: aynı worker sayısında 2,9–3,5 kat (en iyi konfigürasyonlar 6,8 ms'ye karşı 20,8 ms). Her aramada 61 MB'lık corpus pickle ile seri hale getiriliyor, process'ler arasında kopyalanıyor ve tekrar açılıyor. Worker sayısı arttıkça daha da kötüleşiyor, çünkü ana process tüm veriyi tek başına gönderiyor. Çözüm: veriyi bir kez paylaş (initializer + `mmap`, Ray'de `ray.put`) ve görevlere sadece indeks gönder.
 
 ### 4.5 asyncio: eşzamanlılık paralellik değildir
 Sadece coroutine'lerle yazılmış versiyon 1 worker'da 7,9 ms, 10 "worker"da 14,0 ms. Hiç paralellik yok; tek thread görevleri sırayla çalıştırıyor. 10 worker'da daha yavaş, çünkü 40 küçük parça yönetiliyor. asyncio binlerce bekleyen I/O işlemi (ağ istekleri, dosya okuma) için tasarlandı: biri beklerken diğeri çalışır. Bizim iş yükümüzde hiç bekleme yok. `run_in_executor` ile işi thread'lere devredince ThreadPool ile aynı sonuç alınıyor.
@@ -255,7 +271,7 @@ Bonus için hepsini uyguladık, ama gerçek bir sistem kurarken iş yükümüze 
 | Strateji | Bizim iş yükümüze uygun mu? | Neden |
 |---|---|---|
 | **NumPy/BLAS** | **Evet, ana yöntem** | Skorlamanın tamamı tek bir matris çarpımı ve matris birimi en hızlısı |
-| **Numba prange** | **Evet, top-k için** | BLAS karşılığı olmayan döngü. Tek kelimelik değişiklikle 4,4 kat |
+| **Numba prange** | **Evet, top-k için** | BLAS karşılığı olmayan döngü. Tek kelimelik değişiklikle top-k'da 4,4 kat (CPU iş yükünün tamamında 4,5 kat) |
 | **ThreadPoolExecutor** | Corpus büyürse | GIL'siz kernel'lerle işe yarıyor. Corpus'u parça parça işleyip bellek kullanımını sınırlamak için kullanışlı |
 | ProcessPoolExecutor | Hayır | Sadece saf Python CPU işinde gerekli. Bizim ağır işimiz zaten GIL dışında; process'ler sadece başlangıç maliyeti ve bellek ekliyor |
 | asyncio | Hayır | İş yükünde I/O yok. Embedding'i uzak bir API'den alsaydık, yüzlerce isteği eşzamanlı göndermek için doğru araç olurdu |
@@ -296,11 +312,11 @@ En iyi oran açık ara **Numba `prange`**. Final sistemde zaten tek bir NumPy sa
 
 - **Saf Python'da thread'ler neden hızlanmadı?** GIL: aynı anda tek thread Python bytecode'u çalıştırabiliyor. Process'lerin her birinin kendi GIL'i var.
 - **Aynı ThreadPool cpu iş yükünde neden 4 kat hızlandı?** Ağır iş Numba `nogil=True` kodunda yapılıyor; GIL bırakılıyor ve thread'ler gerçekten paralel çalışıyor.
-- **10 çekirdekte neden 10 kat değil?** 6 çekirdek verimlilik çekirdeği; bu kernel'de performans çekirdeğinin işinin ~%23'ünü yapabiliyorlar. 4 performans çekirdeğinde verim %84.
+- **10 çekirdekte neden 10 kat değil?** 6 çekirdek verimlilik çekirdeği. Model tahminimize göre bu kernel'de performans çekirdeğinin işinin ~%23'ünü yapıyorlar (doğrudan ölçmedik). 4 performans çekirdeğinde verim %84.
 - **Amdahl P = 0,86 ne demek?** Eşit worker varsayımıyla işin %86'sı paralel görünüyor. Gerçekte düzleşmeye asıl sebep olan asimetrik çekirdekler.
-- **BLAS iş yükünde paralellik neden işe yaramadı?** Matris çarpımı paylaşılan tek bir matris biriminde (AMX/SME) çalışıyor ve tek thread onu dolduruyor. Daha fazla thread aynı kaynağa sıra bekliyor.
+- **BLAS iş yükünde paralellik neden işe yaramadı?** Sadece matris çarpımını ölçünce tek thread 1.265 GFLOP/s yapıyor ve 2+ thread en fazla %6 ekliyor. Bu, tek bir çekirdeğin SIMD kapasitesinin ~9 katı; çarpımın paylaşılan bir matris biriminde (AMX/SME) yapıldığı yorumuyla tutarlı. Daha fazla thread aynı kaynağa sıra bekliyor.
 - **Process'lere veriyi nasıl kopyalamadan verdiniz?** Initializer'da `np.load(..., mmap_mode="r")`. İşletim sistemi dosyayı bir kez belleğe alıyor ve tüm process'ler aynı fiziksel sayfaları paylaşıyor. Görevlere sadece başlangıç ve bitiş indeksi gidiyor.
-- **Veriyi her görevde gönderince ne oldu?** 3–4 kat yavaşladı. Her aramada 61 MB pickle ile kopyalandı.
+- **Veriyi her görevde gönderince ne oldu?** Yaklaşık 3 kat (aynı worker sayısında 2,9–3,5 kat) yavaşladı. Her aramada 61 MB pickle ile kopyalandı.
 - **asyncio neden işe yaramadı?** Eşzamanlılık paralellik değil. Coroutine'ler tek thread'de sırayla çalışıyor; I/O beklemesi olmadığı için örtüşecek bir şey yok.
 - **Ray neden en yavaş?** 5–6 sn başlatma ve görev başına zamanlama ve nesne deposu ek yükü. Gücü çok makineli dağıtımda.
 - **Oversubscription nedir, nasıl önlediniz?** Her worker'ın kendi BLAS thread'lerini açması, yani çekirdek sayısından çok thread'in yarışması. Havuz kullanan her stratejide BLAS'ı 1 thread'e sabitledik.

@@ -10,7 +10,7 @@ starter code. Every later phase is compared against this function.
 
 Usage:
   .venv/bin/python src/phase1_naive_search.py bench       # timing at 1K/5K/10K/20K
-  .venv/bin/python src/phase1_naive_search.py reference   # top-k for all 200 queries (~10 min, run once)
+  .venv/bin/python src/phase1_naive_search.py reference   # top-k for all 200 queries (~3 min, run once)
 """
 
 import argparse

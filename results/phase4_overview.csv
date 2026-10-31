@@ -1,7 +1,7 @@
 version,phase,seconds_200_queries,max_abs_err_vs_reference,note
-Naive Python loops (Phase 1),1,155.19587500020862,0.0,"5 queries timed, x40"
-Numba @njit loops + top-k,2,1.3761164160096087,1.1286985202030309e-07,
-"Numba parallel + fastmath, parallel top-k",2,0.03786754101747647,1.3924765440709308e-07,approximate (recall@10 ~0.95)
-NumPy matmul + NumPy argpartition,2,0.03387204199680127,7.997893507472043e-07,
-"Final, exact (matmul + Numba parallel top-k)",4,0.004669832997024059,8.427448213721433e-07,
-"Final, fast (SVD k=300)",4,0.002423790981993079,0.04872539004067611,approximate (recall@10 ~0.95)
+Naive Python loops (Phase 1),1,154.53331336029805,0.0,"5 queries timed, x40"
+Numba @njit loops + top-k,2,1.3663837500207592,1.1286985202030309e-07,
+"Numba parallel + fastmath, parallel top-k",2,0.03576304099988192,1.3924765440709308e-07,
+NumPy matmul + NumPy argpartition,2,0.03379849999328144,7.997893507472043e-07,
+"Final, exact (matmul + Numba parallel top-k)",4,0.004841082991333678,8.427448213721433e-07,
+"Final, fast (SVD k=300)",4,0.002505625016056001,0.048725032412807456,approximate (recall@10 ~0.95)

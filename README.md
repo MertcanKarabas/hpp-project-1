@@ -1,24 +1,24 @@
 # High-Performance Similarity Search Engine
 
-YZM 513 – Project 1. Top-10 semantic search over **20,000 arXiv abstracts (cs.AI / cs.CL / cs.LG, 2025–2026)** with 200 queries, taken from a naive pure-Python baseline to a system that is **33,000× faster with identical results**.
+YZM 513 – Project 1. Top-10 semantic search over **20,000 arXiv abstracts (cs.AI / cs.CL / cs.LG, 2025–2026)** with 200 queries, taken from a naive pure-Python baseline to a system that is **~32,000× faster with identical results**.
 
 | Version (200 queries × 20,000 docs, top-10) | Time | Speedup |
 |---|---:|---:|
 | Naive Python loops (Phase 1 baseline) | 155 s | 1× |
-| Numba `@njit` loops | 1.38 s | 113× |
-| Numba parallel + fastmath | 37.9 ms | 4,100× |
-| NumPy matmul + NumPy argpartition | 33.9 ms | 4,600× |
-| **Final, exact** (NumPy matmul + Numba parallel top-k) | **4.67 ms** | **33,000×** |
-| Final, fast (our SVD, k = 300, recall@10 = 0.95) | 2.42 ms | 64,000× |
+| Numba `@njit` loops | 1.37 s | 113× |
+| Numba parallel + fastmath | 35.8 ms | 4,300× |
+| NumPy matmul + NumPy argpartition | 33.8 ms | 4,600× |
+| **Final, exact** (NumPy matmul + Numba parallel top-k) | **4.84 ms** | **31,900×** |
+| Final, fast (our SVD, k = 300, recall@10 = 0.95) | 2.51 ms | 61,700× |
 
-The exact mode returns the same top-10 lists as the baseline for all 200 queries (max score difference 8.4e-7, tolerance 1e-5). Live demo: ~18 ms to embed a query + **0.9 ms to search**.
+All rows were measured in the same run (`results/phase4_overview.csv`); the naive time is 5 queries timed and scaled to 200. Across runs the exact mode takes 4.5–5.0 ms. The exact mode returns the same top-10 lists as the baseline for all 200 queries (max score difference 8.4e-7, tolerance 1e-5). One query takes 0.87 ms to search (benchmarked); the live demo also spends ~15–19 ms embedding the query sentence.
 
 ![Overview](figures/fig7_overview.png)
 
 ## Hardware and software
 Apple M4 (4 performance + 6 efficiency cores), 16 GB RAM, macOS; Python 3.13.7, NumPy 2.5.4 with Apple Accelerate (BLAS), Numba 0.68.1. Details: `results/environment.json`.
 
-On Apple Silicon, Accelerate runs matrix multiplication on a dedicated matrix unit (AMX/SME). This explains two findings: NumPy beats every hand-written loop, and extra CPU threads barely speed up the matrix multiply (see Phase 3).
+The matrix multiply `Q @ X.T` reaches 1,265 GFLOP/s with a single BLAS thread, and 2–10 threads add at most 6% (`results/extra_blas_threads.csv`). That is about 9× a rough single-core SIMD peak, which is consistent with Accelerate running it on Apple's on-chip matrix unit (AMX/SME). It explains two findings: NumPy beats every hand-written loop, and extra CPU threads barely speed up the matrix multiply (see Phase 3).
 
 ## Quick start
 
@@ -47,24 +47,25 @@ All benchmarks use warmup runs and ≥ 5 timed runs (median), enforced by `src/b
 | | `.venv/bin/python src/phase1_profiling.py` | ~2 min | Figure 1, cProfile / line_profiler output |
 | | `.venv/bin/python src/phase1_naive_search.py reference` | ~3 min | top-10 reference for the correctness checks |
 | 2A Sparse vs dense | `.venv/bin/python src/phase2a_sparse_dense.py` | ~4 min | Figure 2 (needs ~2 GB RAM) |
-| 2B Dimensionality reduction | `.venv/bin/python src/phase2b_svd.py` | ~12 min | Figure 3 |
+| 2B Dimensionality reduction | `.venv/bin/python src/phase2b_svd.py` | ~11 min | Figure 3 |
 | 2C Loops vs NumPy vs Numba | `.venv/bin/python src/phase2c_vectorise.py` | ~3 min | Figure 4 |
 | 3 Parallelism | `.venv/bin/python src/phase3_parallel.py --all` | ~15 min | Figure 5 (87 configurations) |
 | 4 Final system | `.venv/bin/python src/phase4_final.py` | ~4 min | Figures 6 and 7 |
+| Supporting numbers | `.venv/bin/python src/extra_measurements.py` | ~2 min | model overlap, query-encode latency (CPU vs MPS), BLAS thread scaling |
 
-Every script also accepts `--plot-only` to redraw its figure from the saved results.
+Every script that draws a figure also accepts `--plot-only` to redraw it from the saved results.
 
 ## Figures
 
 | # | File | Conclusion |
 |---|---|---|
-| 1 | `fig1_profile.png`, `fig1b_cprofile.png` | 99.6% of the naive time is the element-wise cosine loop; 58% is recomputing norms of unit vectors; the full sort is only 0.3%. |
+| 1 | `fig1_profile.png`, `fig1b_cprofile.png` | 99.5% of the naive time is the element-wise cosine loop; 58% is recomputing norms of unit vectors; the full sort is only 0.3%. |
 | 2 | `fig2_sparse_dense.png` | TF-IDF takes 15 MB as CSR vs 2,075 MB dense; an inverted index searches it 730× faster than our dense mpnet loop. |
-| 3 | `fig3_svd.png` | Our block power iteration is 8× faster than full SVD at k = 100; PCA's centring caps recall@10 at 0.74, uncentred SVD reaches 0.95 at k = 300. |
+| 3 | `fig3_svd.png` | At k = 100 our block power iteration is 5.0× and TruncatedSVD 3.2× faster than a float32 full SVD; uncentred SVD and PCA with its mean added back both reach recall@10 = 0.95 at k = 300, while cosine in centred PCA coordinates stalls at 0.74. |
 | 4 | `fig4_vectorise.png` | NumPy is 3,700× faster than Python loops and beats Numba on matrix multiply; Numba wins 22–98× on top-k, which has no BLAS equivalent. |
 | 5 | `fig5_parallel.png` | CPU-bound search scales 4.5× on 10 asymmetric cores; threads give 1.0× on pure Python (GIL); no explicit parallelism beats a single BLAS call on the matrix unit. |
-| 6 | `fig6_scaling.png` | Batch search scales linearly (~250 µs per 1,000 docs) up to 200K docs; single queries jump 4.8× when the corpus outgrows the 16 MB L2 cache. |
-| 7 | `fig7_overview.png` | Every step of the story on one task: 113× → 4,100× → 4,600× → 33,000× (exact) → 64,000× (fast). |
+| 6 | `fig6_scaling.png` | Batch search scales linearly (~250 µs per 1,000 docs) up to 200K docs; a single query slows down 3.7× from 5K to 10K docs, where the corpus outgrows the 16 MB L2 cache. |
+| 7 | `fig7_overview.png` | Every step of the story on one task: 113× → 4,300× → 4,600× → 31,900× (exact) → 61,700× (fast). |
 
 ## Repository layout
 
@@ -86,8 +87,9 @@ Every script also accepts `--plot-only` to redraw its figure from the saved resu
 │   ├── phase3_parallel.py       7 parallel strategies x 3 workloads
 │   ├── phase3_plot.py           Amdahl fit + Figure 5
 │   ├── search_engine.py         the final system
-│   └── phase4_final.py          correctness, scaling, overview
-├── data/                        dataset_card.md, dataset_stats.json (large files rebuilt by the scripts)
+│   ├── phase4_final.py          correctness, scaling, overview
+│   └── extra_measurements.py    model overlap, encode latency, BLAS threads
+├── data/                        dataset card + stats, embeddings/meta.json, embeddings/corpus_ids.txt (large files rebuilt by the scripts)
 ├── results/                     raw benchmark data (CSV / JSON)
 ├── figures/                     all figures, generated by code
 └── docs/                        step-by-step explanations (Turkish)
