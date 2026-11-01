@@ -5,6 +5,7 @@ Usage:
   .venv/bin/python demo.py                       # interactive, exact mode (matches the baseline)
   .venv/bin/python demo.py --fast                # SVD k=300 mode (recall@10 ~ 0.95, faster)
   .venv/bin/python demo.py --query "your text"   # one query, then exit
+  .venv/bin/python demo.py -k 5                  # results per query (default 10, the same top-10 as the benchmarks)
 
 Everything runs on this machine: the embedding model comes from the local HuggingFace
 cache (offline mode), so the demo does not need an internet connection in class.
@@ -45,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true", help="use the SVD (k=300) index")
     ap.add_argument("--query", help="run one query and exit")
-    ap.add_argument("-k", type=int, default=5, help="results per query")
+    ap.add_argument("-k", type=int, default=10, help="results per query")
     # cpu by default: on Apple's GPU (mps) every new sentence length triggers a recompile (~300 ms),
     # while the CPU encodes a short query in a steady ~15-20 ms
     ap.add_argument("--device", default="cpu", help="cpu (default) or mps for the embedding model")

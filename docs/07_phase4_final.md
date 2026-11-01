@@ -192,6 +192,7 @@ Hikaye Amdahl Yasası'nın iki kez işlediğini gösteriyor:
 .venv/bin/python demo.py                      # interaktif, tam mod
 .venv/bin/python demo.py --fast               # SVD k=300
 .venv/bin/python demo.py --query "your text"  # tek query
+.venv/bin/python demo.py -k 5                 # query başına sonuç sayısı (varsayılan 10)
 ```
 
 Örnek çıktı (tek bir çalıştırma):

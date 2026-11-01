@@ -65,6 +65,7 @@ python3 -m venv .venv
 # 3. live demo
 .venv/bin/python demo.py               # exact mode
 .venv/bin/python demo.py --fast        # SVD k=300 mode
+.venv/bin/python demo.py -k 5          # results per query (default 10)
 ```
 
 ## Reproducing every result
