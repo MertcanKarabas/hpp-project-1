@@ -1,0 +1,283 @@
+{
+ "name": "laptop",
+ "env": {
+  "timestamp": "2026-10-31T17:47:33",
+  "os": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "logical_cores": 10,
+  "python": "3.13.7",
+  "numpy": "2.5.4",
+  "scipy": "1.18.1",
+  "numba": "0.68.1",
+  "numba_threads": 10,
+  "blas": "accelerate",
+  "cpu": "Apple M4",
+  "physical_cores": 10,
+  "threads_per_core": 1,
+  "core_note": "4 performance + 6 efficiency cores",
+  "l1d": "128 KB per P-core",
+  "l2": "16 MB shared by the P-cores",
+  "l3": "none (a system-level cache is shared with the GPU)",
+  "simd": "NEON 128-bit + SME matrix unit",
+  "ram_gb": 16.0
+ },
+ "roofs": {
+  "sgemm": [
+   {
+    "n": 2048,
+    "ms": 10.474125010659918,
+    "gflops": 1640.2199865397242
+   },
+   {
+    "n": 4096,
+    "ms": 91.31279197754338,
+    "gflops": 1505.144574987921
+   }
+  ],
+  "peak_gflops": 1640.2199865397242,
+  "triad_gbs": 76.99526809872012,
+  "read_gbs": 92.5280558152182,
+  "copy_1thread_gbs": 76.482338413787,
+  "bandwidth_gbs": 92.5280558152182,
+  "ridge_flop_per_byte": 17.7267313366586
+ },
+ "kernels": [
+  {
+   "name": "matmul_q1",
+   "median_s": 0.0009664579993113875,
+   "std_s": 8.677409681136793e-05,
+   "flops": 30720000,
+   "bytes": 61523072,
+   "ai": 0.49932487116378066,
+   "gflops": 31.78617179627915,
+   "gbs": 63.65829869879073
+  },
+  {
+   "name": "matmul_q20",
+   "median_s": 0.0016608750156592578,
+   "std_s": 5.606416463389418e-05,
+   "flops": 614400000,
+   "bytes": 63101440,
+   "ai": 9.736703314536086,
+   "gflops": 369.92548759373307,
+   "gbs": 37.99288893207469
+  },
+  {
+   "name": "matmul_q200",
+   "median_s": 0.004292083001928404,
+   "std_s": 0.0001782717997960257,
+   "flops": 6144000000,
+   "bytes": 78054400,
+   "ai": 78.7143325680551,
+   "gflops": 1431.4727830844702,
+   "gbs": 18.18566881510229
+  },
+  {
+   "name": "numba_njit_q200",
+   "median_s": 1.2632071249827277,
+   "std_s": 0.02755824860216726,
+   "flops": 6144000000,
+   "bytes": 78054400,
+   "ai": 78.7143325680551,
+   "gflops": 4.863810438121151,
+   "gbs": 0.06179065844096412
+  },
+  {
+   "name": "numba_prange_fastmath_q200",
+   "median_s": 0.037450000003445894,
+   "std_s": 0.0026531058433890455,
+   "flops": 6144000000,
+   "bytes": 78054400,
+   "ai": 78.7143325680551,
+   "gflops": 164.05874497822884,
+   "gbs": 2.0842296393275825
+  },
+  {
+   "name": "topk_numba_parallel",
+   "median_s": 0.00032045799889601767,
+   "std_s": 8.841277693695757e-06,
+   "flops": 4000000,
+   "bytes": 16000000,
+   "ai": 0.25,
+   "gflops": 12.482134987362015,
+   "gbs": 49.92853994944806
+  },
+  {
+   "name": "topk_numpy_argpartition",
+   "median_s": 0.028753582999343053,
+   "std_s": 0.00027607385201901686,
+   "flops": 4000000,
+   "bytes": 16000000,
+   "ai": 0.25,
+   "gflops": 0.1391130976647811,
+   "gbs": 0.5564523906591244
+  }
+ ],
+ "overview": [
+  {
+   "version": "Naive Python loops (Phase 1)",
+   "seconds_200_queries": 151.8210624999483,
+   "max_abs_err": 0.0,
+   "note": "4 queries timed, scaled to 200"
+  },
+  {
+   "version": "Numba @njit loops + top-k",
+   "seconds_200_queries": 1.3581719580106437,
+   "max_abs_err": 1.1286985202030309e-07,
+   "note": ""
+  },
+  {
+   "version": "Numba parallel + fastmath, parallel top-k",
+   "seconds_200_queries": 0.037220624973997474,
+   "max_abs_err": 1.3924765440709308e-07,
+   "note": ""
+  },
+  {
+   "version": "NumPy matmul + NumPy argpartition",
+   "seconds_200_queries": 0.03429149999283254,
+   "max_abs_err": 7.997893507472043e-07,
+   "note": ""
+  },
+  {
+   "version": "Final, exact (matmul + Numba parallel top-k)",
+   "seconds_200_queries": 0.004992750007659197,
+   "max_abs_err": 8.427448213721433e-07,
+   "note": ""
+  },
+  {
+   "version": "Final, fast (SVD k=300)",
+   "seconds_200_queries": 0.002678624994587153,
+   "max_abs_err": 0.048725032412807456,
+   "note": "approximate (recall@10 ~0.95)"
+  }
+ ],
+ "engine": [
+  {
+   "n_docs": 1000,
+   "mode": "exact",
+   "build_s": 0.0004320839943829924,
+   "batch200_ms": 0.3896669950336218,
+   "single_query_ms": 0.011808349518105388
+  },
+  {
+   "n_docs": 1000,
+   "mode": "fast",
+   "build_s": 0.035262207995401695,
+   "batch200_ms": 0.3939580055885017,
+   "single_query_ms": 0.017225000192411244
+  },
+  {
+   "n_docs": 5000,
+   "mode": "exact",
+   "build_s": 0.0015338340017478913,
+   "batch200_ms": 1.546709012473002,
+   "single_query_ms": 0.13411250110948458
+  },
+  {
+   "n_docs": 5000,
+   "mode": "fast",
+   "build_s": 0.06892683400656097,
+   "batch200_ms": 0.7977919885888696,
+   "single_query_ms": 0.03146040107822046
+  },
+  {
+   "n_docs": 10000,
+   "mode": "exact",
+   "build_s": 0.0031780829885974526,
+   "batch200_ms": 2.6112500054296106,
+   "single_query_ms": 0.5318645489751361
+  },
+  {
+   "n_docs": 10000,
+   "mode": "fast",
+   "build_s": 0.10943229199619964,
+   "batch200_ms": 1.3974170142319053,
+   "single_query_ms": 0.06828749901615083
+  },
+  {
+   "n_docs": 20000,
+   "mode": "exact",
+   "build_s": 0.006165166007122025,
+   "batch200_ms": 4.956374992616475,
+   "single_query_ms": 1.035341649549082
+  },
+  {
+   "n_docs": 20000,
+   "mode": "fast",
+   "build_s": 0.2015662910125684,
+   "batch200_ms": 2.4630409898236394,
+   "single_query_ms": 0.4437645504367538
+  }
+ ],
+ "correctness": {
+  "exact_max_abs_score_diff": 8.427448213721433e-07,
+  "exact_identical_top10_lists": 1.0,
+  "exact_identical_top10_sets": 1.0,
+  "fast_recall_at_10": 0.9535000000000001
+ },
+ "threads": {
+  "blas": [
+   {
+    "threads": "1",
+    "ms": 5.52570799482055,
+    "gflops": 1111.8937167434467
+   },
+   {
+    "threads": "2",
+    "ms": 4.338707978604361,
+    "gflops": 1416.089773798593
+   },
+   {
+    "threads": "4",
+    "ms": 4.509374994086102,
+    "gflops": 1362.49480428167
+   },
+   {
+    "threads": "8",
+    "ms": 4.3460410088300705,
+    "gflops": 1413.7004201103778
+   },
+   {
+    "threads": "10",
+    "ms": 4.269375000149012,
+    "gflops": 1439.0865172971592
+   },
+   {
+    "threads": "default",
+    "ms": 4.352708987426013,
+    "gflops": 1411.5347517485363
+   }
+  ],
+  "numba": [
+   {
+    "threads": 1,
+    "ms": 161.64883301826194
+   },
+   {
+    "threads": 2,
+    "ms": 85.13133402448148
+   },
+   {
+    "threads": 4,
+    "ms": 47.840457991696894
+   },
+   {
+    "threads": 8,
+    "ms": 38.855541992234066
+   },
+   {
+    "threads": 10,
+    "ms": 36.657582997577265
+   }
+  ],
+  "gil": {
+   "workers": 10,
+   "queries": 20,
+   "docs": 1000,
+   "serial_s": 0.7535941670066677,
+   "threadpool_s": 0.7538533330080099,
+   "processpool_s": 0.15831895801238716
+  }
+ },
+ "total_runtime_s": 54.86381833298947
+}

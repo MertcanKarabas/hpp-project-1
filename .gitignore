@@ -17,3 +17,6 @@ data/embeddings/*
 !data/embeddings/corpus_ids.txt
 data/corpus.jsonl
 data/queries.jsonl
+
+# Colab bundle (code + embeddings), rebuilt by `python src/machine_bench.py --pack`
+/colab_pack.zip

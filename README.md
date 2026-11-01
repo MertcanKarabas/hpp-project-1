@@ -20,6 +20,36 @@ Apple M4 (4 performance + 6 efficiency cores), 16 GB RAM, macOS; Python 3.13.7, 
 
 The matrix multiply `Q @ X.T` reaches 1,265 GFLOP/s with a single BLAS thread, and 2–10 threads add at most 6% (`results/extra_blas_threads.csv`). That is about 9× a rough single-core SIMD peak, which is consistent with Accelerate running it on Apple's on-chip matrix unit (AMX/SME). It explains two findings: NumPy beats every hand-written loop, and extra CPU threads barely speed up the matrix multiply (see Phase 3).
 
+## Bonus: laptop vs Google Colab, and a roofline model
+
+The same code, data and benchmark rules (`src/machine_bench.py`) were run on the laptop and on a free Colab CPU runtime (Intel Xeon @ 2.20 GHz, **1 physical core × 2 hyperthreads**, AVX2, OpenBLAS). Write-up: [docs/08](docs/08_bonus_colab_roofline.md) (Turkish).
+
+| 200 queries × 20,000 docs | Laptop | Colab | Colab slower by |
+|---|---:|---:|---:|
+| Naive Python loops | 151.8 s | 649.9 s | 4.3× |
+| Numba `@njit` loops | 1.36 s | 5.15 s | 3.8× |
+| NumPy matmul + argpartition | 34.3 ms | 153.4 ms | 4.5× |
+| **Final, exact** | **4.99 ms** | **120.0 ms** | 24× |
+| Final, fast (SVD k = 300) | 2.68 ms | 55.6 ms | 20.8× |
+
+- **How much slower Colab is depends on which part of the machine the code uses:**
+  - single-core scalar code: ~4×;
+  - memory bandwidth (92.5 vs 12.2 GB/s): 7.6×;
+  - matrix multiply (1,640 vs 58 GFLOP/s), which on the laptop runs on the matrix unit: 21–28×.
+- **The optimisation ranking is the same on both machines**, and the exact mode returns the identical top-10 lists for all 200 queries on both (ARM + Accelerate vs x86 + OpenBLAS).
+- **The bottleneck moves.**
+  - On the laptop, top-k takes 87% of the NumPy version, so our Numba top-k gives 6.9×.
+  - On Colab the matrix multiply dominates (72%), and the same change gives only 1.28× (Amdahl).
+- **Colab's 2 vCPUs are one core:**
+  - BLAS threads give 1.05×;
+  - a process pool gives 1.04× on pure Python (laptop: 4.76×).
+- **Roofline (Figure 9):**
+  - One query (0.5 FLOP/byte) sits on the memory roof of both machines.
+  - 200 queries (78.7 FLOP/byte) reach 87% (laptop) and 93% (Colab) of peak compute.
+  - The ridge point is 17.7 FLOP/byte on the laptop and 4.8 on Colab, so a batch needs about 38 queries on the laptop, but only about 10 on Colab, to become compute bound.
+
+![Roofline](figures/fig9_roofline.png)
+
 ## Quick start
 
 ```bash
@@ -52,6 +82,9 @@ All benchmarks use warmup runs and ≥ 5 timed runs (median), enforced by `src/b
 | 3 Parallelism | `.venv/bin/python src/phase3_parallel.py --all` | ~15 min | Figure 5 (87 configurations) |
 | 4 Final system | `.venv/bin/python src/phase4_final.py` | ~4 min | Figures 6 and 7 |
 | Supporting numbers | `.venv/bin/python src/extra_measurements.py` | ~2 min | model overlap, query-encode latency (CPU vs MPS), BLAS thread scaling |
+| Bonus: laptop run | `.venv/bin/python src/machine_bench.py --name laptop` | ~1 min | `results/machine_laptop.json` |
+| Bonus: Colab run | `.venv/bin/python src/machine_bench.py --pack`, upload `colab_pack.zip` to Drive, run `notebooks/colab_machine_bench.ipynb` | ~5 min on Colab | `results/machine_colab.json` |
+| Bonus: comparison | `.venv/bin/python src/machine_compare.py` | seconds | Figures 8 and 9, `results/machine_comparison.csv` |
 
 Every script that draws a figure also accepts `--plot-only` to redraw it from the saved results.
 
@@ -66,6 +99,8 @@ Every script that draws a figure also accepts `--plot-only` to redraw it from th
 | 5 | `fig5_parallel.png` | CPU-bound search scales 4.5× on 10 asymmetric cores; threads give 1.0× on pure Python (GIL); no explicit parallelism beats a single BLAS call on the matrix unit. |
 | 6 | `fig6_scaling.png` | Batch search scales linearly (~250 µs per 1,000 docs) up to 200K docs; a single query slows down 3.7× from 5K to 10K docs, where the corpus outgrows the 16 MB L2 cache. |
 | 7 | `fig7_overview.png` | Every step of the story on one task: 113× → 4,300× → 4,600× → 31,900× (exact) → 61,700× (fast). |
+| 8 | `fig8_machines.png` | Laptop vs Colab: Colab is 4× slower on scalar code, 7.6× on memory bandwidth, 21–28× on matrix multiply; its 2 vCPUs give no parallel speedup. |
+| 9 | `fig9_roofline.png` | Roofline of both machines: batching moves `Q @ X.T` from the memory roof (1 query) to 87–93% of peak compute (200 queries). |
 
 ## Repository layout
 
@@ -88,7 +123,11 @@ Every script that draws a figure also accepts `--plot-only` to redraw it from th
 │   ├── phase3_plot.py           Amdahl fit + Figure 5
 │   ├── search_engine.py         the final system
 │   ├── phase4_final.py          correctness, scaling, overview
-│   └── extra_measurements.py    model overlap, encode latency, BLAS threads
+│   ├── extra_measurements.py    model overlap, encode latency, BLAS threads
+│   ├── machine_bench.py         bonus: portable benchmark suite for laptop and Colab
+│   └── machine_compare.py       bonus: laptop vs Colab table, Figures 8 and 9
+├── notebooks/
+│   └── colab_machine_bench.ipynb  runs machine_bench.py on Google Colab
 ├── data/                        dataset card + stats, embeddings/meta.json, embeddings/corpus_ids.txt (large files rebuilt by the scripts)
 ├── results/                     raw benchmark data (CSV / JSON)
 ├── figures/                     all figures, generated by code
@@ -103,6 +142,7 @@ Every script that draws a figure also accepts `--plot-only` to redraw it from th
 5. [Phase 2C](docs/05_phase2c_vectorise.md): loops vs NumPy vs Numba
 6. [Phase 3](docs/06_phase3_parallel.md): parallelism and concurrency
 7. [Phase 4](docs/07_phase4_final.md): final system and scaling
+8. [Bonus](docs/08_bonus_colab_roofline.md): laptop vs Colab, roofline model
 
 ## Notes
 - **Dataset:** `src/data_prep.py` queries the arXiv API (3 categories × 22 months × 3 windows). Raw responses are cached in `data/raw/`, so reruns do not hit the API again. Preprocessing and statistics: `data/dataset_card.md`.

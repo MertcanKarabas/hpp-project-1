@@ -1,0 +1,20 @@
+metric,unit,laptop,colab,colab_over_laptop
+Peak float32 compute (SGEMM),GFLOP/s,1640.22,58.3235,0.03556
+Memory bandwidth (best of triad / read),GB/s,92.5281,12.178,0.1316
+"Memory bandwidth, one thread (NumPy copy)",GB/s,76.4823,9.6341,0.126
+Ridge point (peak / bandwidth),FLOP/byte,17.7267,4.78923,0.2702
+"BLAS, 1 thread (Q @ X.T, 200 x 20K)",GFLOP/s,1111.89,52.6293,0.04733
+"Q @ X.T, 1 query (memory bound)",GB/s,63.6583,12.4117,0.195
+Naive Python (Phase 1) (200 queries),ms,151821,649895,4.281
+"Numba @njit, 1 thread (200 queries)",ms,1358.17,5145.28,3.788
+Numba prange + fastmath (200 queries),ms,37.2206,345.702,9.288
+NumPy matmul + argpartition (200 queries),ms,34.2915,153.409,4.474
+"Final, exact (200 queries)",ms,4.99275,119.979,24.03
+"Final, fast (SVD k=300) (200 queries)",ms,2.67862,55.5871,20.75
+"Final exact, one query, 20K docs",ms,1.03534,7.7709,7.506
+"Final fast, build (SVD, 20K docs)",s,0.201566,4.11846,20.43
+"Numba speedup, all cores vs 1",x,4.4097,0.989179,0.2243
+"Pure Python, thread pool speedup",x,0.999656,0.932409,0.9327
+"Pure Python, process pool speedup",x,4.75997,1.04343,0.2192
+Exact mode: identical top-10 lists vs Phase 1,share,1,1,1
+Exact mode: max score difference vs Phase 1,abs,8.42745e-07,3.40468e-07,0.404
